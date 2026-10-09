@@ -1,7 +1,6 @@
 import io
 import json
-from flask import Flask, render_template_string, request, redirect, url_for, send_file
-import pandas as pd
+from flask import Flask, render_template_string, request
 
 app = Flask(__name__)
 
@@ -108,6 +107,105 @@ HTML_TEMPLATE = """
         }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #294773; }
         th { background: #0c2450; color: #ffffff; }
+        
+        /* A4 Marksheet Styling */
+        .marksheet-card {
+            background: #ffffff;
+            color: #111111;
+            width: 210mm;
+            min-height: 297mm;
+            margin: 20px auto;
+            padding: 20mm;
+            box-sizing: border-box;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            position: relative;
+        }
+        .marksheet-header {
+            text-align: center;
+            border-bottom: 3px double #0c2450;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        .marksheet-header h2 { margin: 0; color: #0c2450; font-size: 26px; }
+        .marksheet-header p { margin: 5px 0 0 0; color: #555555; font-size: 14px; }
+        
+        .student-info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 20px;
+            font-size: 15px;
+            color: #1e293b;
+        }
+        
+        .marksheet-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .marksheet-table th, .marksheet-table td {
+            border: 1px solid #cbd5e1;
+            padding: 10px;
+            text-align: center;
+            color: #1e293b;
+        }
+        .marksheet-table th {
+            background: #0c2450;
+            color: #ffffff;
+        }
+        
+        /* Visualization Progress bars */
+        .chart-container {
+            margin-top: 20px;
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+        .chart-bar-wrap {
+            margin-bottom: 10px;
+        }
+        .chart-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 4px;
+        }
+        .chart-bar-bg {
+            background: #e2e8f0;
+            border-radius: 4px;
+            height: 12px;
+            width: 100%;
+            overflow: hidden;
+        }
+        .chart-bar-fill {
+            background: linear-gradient(90deg, #2563eb, #3b82f6);
+            height: 100%;
+            border-radius: 4px;
+        }
+
+        .marksheet-footer {
+            margin-top: 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        @media print {
+            body { background: none; padding: 0; color: #000; }
+            .container > *:not(#recordsContainer) { display: none; }
+            .container { background: none; border: none; box-shadow: none; padding: 0; max-width: 100%; }
+            .marksheet-card { box-shadow: none; margin: 0; width: 100%; page-break-after: always; }
+            .no-print { display: none !important; }
+        }
+
         .footer {
             text-align: center;
             margin-top: 30px;
@@ -116,21 +214,20 @@ HTML_TEMPLATE = """
             color: #93c5fd;
             font-size: 14px;
             font-weight: 600;
-            letter-spacing: 0.5px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div style="background: linear-gradient(120deg, #101b35, #315efb); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+        <div style="background: linear-gradient(120deg, #101b35, #315efb); padding: 20px; border-radius: 12px; margin-bottom: 20px;" class="no-print">
             <h1 style="margin:0;">🎓 EduTrack</h1>
             <p style="margin:5px 0 0 0; color:#dbe8ff;">Student Marks, Academic Results & Performance Management</p>
         </div>
 
-        <div class="nav-tabs">
+        <div class="nav-tabs no-print">
             <a href="/" class="{{ 'active' if active_tab == 'subjects' else '' }}">Manage Subjects</a>
             <a href="/marks" class="{{ 'active' if active_tab == 'marks' else '' }}">Enter Marks</a>
-            <a href="/records" class="{{ 'active' if active_tab == 'records' else '' }}">Saved Results</a>
+            <a href="/records" class="{{ 'active' if active_tab == 'records' else '' }}">Saved Marksheets</a>
         </div>
 
         {% if active_tab == 'subjects' %}
@@ -174,25 +271,26 @@ HTML_TEMPLATE = """
                     <input type="text" id="rollNumber" required>
                 </div>
                 <div class="form-group">
-                    <label>Class / Section</label>
+                    <label>Class / Semester</label>
                     <input type="text" id="className" required>
                 </div>
                 <h3>Subject-wise Marks</h3>
                 <div id="dynamicMarksInputs"></div>
-                <button type="submit" style="margin-top:15px;">Calculate and Save Result</button>
+                <button type="submit" style="margin-top:15px;">Generate Marksheet</button>
             </form>
 
         {% elif active_tab == 'records' %}
-            <h2>Saved Student Results</h2>
-            <div id="recordsContainer" style="overflow-x:auto;"></div>
-            <br>
-            <div id="downloadButtons" style="display:none; gap:10px;">
-                <button onclick="downloadCSV()" class="btn">Download CSV</button>
-                <button onclick="downloadExcel()" class="btn">Download Excel</button>
+            <div style="display: flex; justify-content: space-between; align-items: center;" class="no-print">
+                <h2>Generated Student Marksheets (A4 Format)</h2>
+                <div>
+                    <button onclick="window.print()" class="btn">🖨️ Print / Save as PDF</button>
+                    <button onclick="downloadCSV()" class="btn" style="background: #059669;">📥 Download CSV</button>
+                </div>
             </div>
+            <div id="recordsContainer"></div>
         {% endif %}
 
-        <div class="footer">
+        <div class="footer no-print">
             Created by Vishal Saini
         </div>
     </div>
@@ -300,28 +398,37 @@ HTML_TEMPLATE = """
             let className = document.getElementById("className").value.trim();
             let subjects = getSubjects();
 
-            let record = {
-                "Student Name": name,
-                "Roll Number": roll,
-                "Class": className
-            };
-
+            let subjectDetails = [];
             let totalObtained = 0;
             let totalMaximum = 0;
 
             subjects.forEach(s => {
                 let val = parseFloat(document.getElementById(`mark_${s.name}`).value) || 0;
                 let maxVal = s.maximum;
-                record[`${s.name} Obtained`] = val;
-                record[`${s.name} Maximum`] = maxVal;
-                record[`${s.name} Percentage`] = maxVal > 0 ? parseFloat(((val / maxVal) * 100).toFixed(2)) : 0;
+                let percentage = maxVal > 0 ? parseFloat(((val / maxVal) * 100).toFixed(2)) : 0;
+                
+                subjectDetails.push({
+                    name: s.name,
+                    obtained: val,
+                    maximum: maxVal,
+                    percentage: percentage
+                });
+
                 totalObtained += val;
                 totalMaximum += maxVal;
             });
 
-            record["Total Obtained"] = parseFloat(totalObtained.toFixed(2));
-            record["Total Maximum"] = parseFloat(totalMaximum.toFixed(2));
-            record["Overall Percentage"] = totalMaximum > 0 ? parseFloat(((totalObtained / totalMaximum) * 100).toFixed(2)) : 0;
+            let overallPercentage = totalMaximum > 0 ? parseFloat(((totalObtained / totalMaximum) * 100).toFixed(2)) : 0;
+
+            let record = {
+                "Student Name": name,
+                "Roll Number": roll,
+                "Class": className,
+                "Subjects": subjectDetails,
+                "Total Obtained": parseFloat(totalObtained.toFixed(2)),
+                "Total Maximum": parseFloat(totalMaximum.toFixed(2)),
+                "Overall Percentage": overallPercentage
+            };
 
             let results = getResults();
             results.push(record);
@@ -333,51 +440,109 @@ HTML_TEMPLATE = """
         function renderRecords() {
             let results = getResults();
             let container = document.getElementById("recordsContainer");
-            let btnContainer = document.getElementById("downloadButtons");
 
             if (results.length === 0) {
-                container.innerHTML = "<p>No student results have been saved yet.</p>";
-                btnContainer.style.display = "none";
+                container.innerHTML = "<p style='margin-top:20px;'>No student marksheets have been generated yet.</p>";
                 return;
             }
 
-            let html = `<table><tr>`;
-            let keys = Object.keys(results[0]);
-            keys.forEach(k => html += `<th>${k}</th>`);
-            html += `</tr>`;
+            let html = "";
+            results.forEach((r, idx) => {
+                html += `
+                    <div class="marksheet-card">
+                        <div class="marksheet-header">
+                            <h2>🎓 BIKANER TECHNICAL UNIVERSITY / SGI</h2>
+                            <p>Official Academic Performance Marksheet</p>
+                        </div>
+                        
+                        <div class="student-info-grid">
+                            <div><strong>Student Name:</strong> ${r["Student Name"]}</div>
+                            <div><strong>Roll Number:</strong> ${r["Roll Number"]}</div>
+                            <div><strong>Class / Semester:</strong> ${r["Class"]}</div>
+                            <div><strong>Status:</strong> <span style="color: #16a34a; font-weight: bold;">PASSED</span></div>
+                        </div>
 
-            results.forEach(r => {
-                html += `<tr>`;
-                keys.forEach(k => html += `<td>${r[k]}</td>`);
-                html += `</tr>`;
+                        <table class="marksheet-table">
+                            <tr>
+                                <th>Subject Name</th>
+                                <th>Maximum Marks</th>
+                                <th>Marks Obtained</th>
+                                <th>Percentage</th>
+                            </tr>
+                `;
+
+                r["Subjects"].forEach(sub => {
+                    html += `
+                        <tr>
+                            <td style="text-align:left; font-weight:600;">${sub.name}</td>
+                            <td>${sub.maximum}</td>
+                            <td>${sub.obtained}</td>
+                            <td>${sub.percentage}%</td>
+                        </tr>
+                    `;
+                });
+
+                html += `
+                            <tr style="background:#f1f5f9; font-weight:bold;">
+                                <td style="text-align:left;">TOTAL / OVERALL</td>
+                                <td>${r["Total Maximum"]}</td>
+                                <td>${r["Total Obtained"]}</td>
+                                <td style="color:#2563eb;">${r["Overall Percentage"]}%</td>
+                            </tr>
+                        </table>
+
+                        <div class="chart-container">
+                            <h4 style="margin:0 0 10px 0; color:#0c2450;">Performance Visualization Chart</h4>
+                `;
+
+                r["Subjects"].forEach(sub => {
+                    html += `
+                        <div class="chart-bar-wrap">
+                            <div class="chart-label">
+                                <span>${sub.name}</span>
+                                <span>${sub.obtained} / ${sub.maximum} (${sub.percentage}%)</span>
+                            </div>
+                            <div class="chart-bar-bg">
+                                <div class="chart-bar-fill" style="width: ${sub.percentage}%;"></div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `
+                        </div>
+
+                        <div class="marksheet-footer">
+                            <div>
+                                <p style="margin:0; font-size:13px; color:#555;">Date: ${new Date().toLocaleDateString()}</p>
+                            </div>
+                            <div style="text-align:center;">
+                                <div style="font-family: monospace; font-weight:bold; color:#0c2450; font-size:16px; border-bottom: 2px solid #0c2450; padding-bottom:5px; width:150px;">Vishal Saini</div>
+                                <p style="margin:5px 0 0 0; font-size:12px; color:#666;">Controller of Examination</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
             });
-            html += `</table>`;
 
             container.innerHTML = html;
-            btnContainer.style.display = "flex";
         }
 
         function downloadCSV() {
             let results = getResults();
             if (results.length === 0) return;
-            let keys = Object.keys(results[0]);
-            let csvContent = keys.join(",") + "\\n";
+            
+            let csvContent = "Student Name,Roll Number,Class,Total Obtained,Total Maximum,Overall Percentage\\n";
             results.forEach(r => {
-                let row = keys.map(k => `"${r[k]}"`).join(",");
-                csvContent += row + "\\n";
+                csvContent += `"${r["Student Name"]}","${r["Roll Number"]}","${r["Class"]}",${r["Total Obtained"]},${r["Total Maximum"]},${r["Overall Percentage"]}\\n`;
             });
 
             let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             let url = URL.createObjectURL(blob);
             let a = document.createElement('a');
             a.href = url;
-            a.download = "student_results.csv";
+            a.download = "student_results_summary.csv";
             a.click();
-        }
-
-        function downloadExcel() {
-            // Fallback CSV download formatted as .xls for simple client-side browser export
-            downloadCSV();
         }
     </script>
 </body>
