@@ -1,15 +1,9 @@
-import os
-import json
 import io
-from pathlib import Path
-import pandas as pd
+import json
 from flask import Flask, render_template_string, request, redirect, url_for, send_file
+import pandas as pd
 
 app = Flask(__name__)
-
-BASE_DIR = Path("/tmp")
-SUBJECT_FILE = BASE_DIR / "subjects.json"
-RESULT_FILE = BASE_DIR / "student_results.csv"
 
 DEFAULT_SUBJECTS = [
     {"name": "English", "maximum": 100.0},
@@ -18,54 +12,6 @@ DEFAULT_SUBJECTS = [
     {"name": "Computer", "maximum": 100.0},
     {"name": "Hindi", "maximum": 100.0},
 ]
-
-def validate_subjects(subjects):
-    if not isinstance(subjects, list):
-        raise ValueError("Subject configuration must be a list.")
-    names = set()
-    cleaned = []
-    for item in subjects:
-        if not isinstance(item, dict):
-            raise ValueError("Invalid subject record.")
-        name = str(item.get("name", "")).strip()
-        maximum = float(item.get("maximum", 0))
-        if not name:
-            raise ValueError("Subject name cannot be empty.")
-        if name.casefold() in names:
-            raise ValueError(f"Duplicate subject: {name}")
-        names.add(name.casefold())
-        cleaned.append({"name": name, "maximum": maximum})
-    return cleaned if cleaned else DEFAULT_SUBJECTS.copy()
-
-def load_subjects():
-    if not SUBJECT_FILE.exists():
-        save_subjects(DEFAULT_SUBJECTS)
-        return DEFAULT_SUBJECTS.copy()
-    try:
-        with SUBJECT_FILE.open("r", encoding="utf-8") as file:
-            data = json.load(file)
-        return validate_subjects(data)
-    except Exception:
-        return DEFAULT_SUBJECTS.copy()
-
-def save_subjects(subjects):
-    cleaned = validate_subjects(subjects)
-    with SUBJECT_FILE.open("w", encoding="utf-8") as file:
-        json.dump(cleaned, file, indent=2, ensure_ascii=False)
-
-def load_results():
-    if not RESULT_FILE.exists():
-        return pd.DataFrame()
-    try:
-        return pd.read_csv(RESULT_FILE)
-    except Exception:
-        return pd.DataFrame()
-
-def save_result(record):
-    old_results = load_results()
-    new_row = pd.DataFrame([record])
-    updated = pd.concat([old_results, new_row], ignore_index=True)
-    updated.to_csv(RESULT_FILE, index=False, encoding="utf-8-sig")
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -162,7 +108,6 @@ HTML_TEMPLATE = """
         }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #294773; }
         th { background: #0c2450; color: #ffffff; }
-        .alert { padding: 10px; background: #1e3b68; border-radius: 8px; margin-bottom: 15px; color: #dbe8ff; }
         .footer {
             text-align: center;
             margin-top: 30px;
@@ -188,179 +133,265 @@ HTML_TEMPLATE = """
             <a href="/records" class="{{ 'active' if active_tab == 'records' else '' }}">Saved Results</a>
         </div>
 
-        {% with messages = get_flashed_messages() %}
-          {% if messages %}
-            <div class="alert">{{ messages[0] }}</div>
-          {% endif %}
-        {% endwith %}
-
         {% if active_tab == 'subjects' %}
             <h2>Manage Subjects</h2>
             <table>
                 <tr><th>Subject</th><th>Maximum Marks</th></tr>
-                {% for s in subjects %}
-                <tr><td>{{ s.name }}</td><td>{{ s.maximum }}</td></tr>
-                {% endfor %}
+                <tbody id="subjectTableBody"></tbody>
             </table>
             
             <h3 style="margin-top:25px;">Add New Subject</h3>
-            <form method="POST" action="/add_subject">
+            <form id="addSubjectForm" onsubmit="addSubject(event)">
                 <div class="form-group">
                     <label>Subject Name</label>
-                    <input type="text" name="name" required>
+                    <input type="text" id="subName" required>
                 </div>
                 <div class="form-group">
                     <label>Maximum Marks</label>
-                    <input type="number" name="maximum" value="100" step="1" required>
+                    <input type="number" id="subMax" value="100" step="1" required>
                 </div>
                 <button type="submit">Add Subject</button>
             </form>
 
             <h3 style="margin-top:30px;">Remove a Subject</h3>
-            <form method="POST" action="/remove_subject">
+            <form id="removeSubjectForm" onsubmit="removeSubject(event)">
                 <div class="form-group">
                     <label>Select Subject to Remove</label>
-                    <select name="subject_name">
-                        {% for s in subjects %}
-                        <option value="{{ s.name }}">{{ s.name }}</option>
-                        {% endfor %}
-                    </select>
+                    <select id="removeSubSelect"></select>
                 </div>
                 <button type="submit" class="btn-danger">Remove Subject</button>
             </form>
 
         {% elif active_tab == 'marks' %}
             <h2>Enter Student Marks</h2>
-            <form method="POST" action="/save_marks">
+            <form id="saveMarksForm" onsubmit="saveMarks(event)">
                 <div class="form-group">
                     <label>Student Full Name</label>
-                    <input type="text" name="student_name" required>
+                    <input type="text" id="studentName" required>
                 </div>
                 <div class="form-group">
                     <label>Roll Number</label>
-                    <input type="text" name="roll_number" required>
+                    <input type="text" id="rollNumber" required>
                 </div>
                 <div class="form-group">
                     <label>Class / Section</label>
-                    <input type="text" name="class_name" required>
+                    <input type="text" id="className" required>
                 </div>
                 <h3>Subject-wise Marks</h3>
-                {% for s in subjects %}
-                <div class="form-group">
-                    <label>{{ s.name }} (Max: {{ s.maximum }})</label>
-                    <input type="number" name="mark_{{ s.name }}" min="0" max="{{ s.maximum }}" step="1" value="0" required>
-                </div>
-                {% endfor %}
-                <button type="submit">Calculate and Save Result</button>
+                <div id="dynamicMarksInputs"></div>
+                <button type="submit" style="margin-top:15px;">Calculate and Save Result</button>
             </form>
 
         {% elif active_tab == 'records' %}
             <h2>Saved Student Results</h2>
-            {% if saved_html %}
-                <div style="overflow-x:auto;">{{ saved_html | safe }}</div>
-                <br>
-                <a href="/download/csv" class="btn">Download CSV</a>
-                <a href="/download/excel" class="btn">Download Excel</a>
-            {% else %}
-                <p>No student results have been saved yet.</p>
-            {% endif %}
+            <div id="recordsContainer" style="overflow-x:auto;"></div>
+            <br>
+            <div id="downloadButtons" style="display:none; gap:10px;">
+                <button onclick="downloadCSV()" class="btn">Download CSV</button>
+                <button onclick="downloadExcel()" class="btn">Download Excel</button>
+            </div>
         {% endif %}
 
         <div class="footer">
             Created by Vishal Saini
         </div>
     </div>
+
+    <script>
+        const DEFAULT_SUBJECTS = [
+            {name: "English", maximum: 100.0},
+            {name: "Mathematics", maximum: 100.0},
+            {name: "Science", maximum: 100.0},
+            {name: "Computer", maximum: 100.0},
+            {name: "Hindi", maximum: 100.0}
+        ];
+
+        function getSubjects() {
+            let data = localStorage.getItem("edutrack_subjects");
+            if (!data) {
+                localStorage.setItem("edutrack_subjects", JSON.stringify(DEFAULT_SUBJECTS));
+                return DEFAULT_SUBJECTS;
+            }
+            return JSON.parse(data);
+        }
+
+        function saveSubjectsList(subjects) {
+            localStorage.setItem("edutrack_subjects", JSON.stringify(subjects));
+        }
+
+        function getResults() {
+            let data = localStorage.getItem("edutrack_results");
+            return data ? JSON.parse(data) : [];
+        }
+
+        function saveResultsList(results) {
+            localStorage.setItem("edutrack_results", JSON.stringify(results));
+        }
+
+        const tab = "{{ active_tab }}";
+
+        if (tab === "subjects") {
+            renderSubjects();
+        } else if (tab === "marks") {
+            renderMarksForm();
+        } else if (tab === "records") {
+            renderRecords();
+        }
+
+        function renderSubjects() {
+            let subjects = getSubjects();
+            let tbody = document.getElementById("subjectTableBody");
+            let select = document.getElementById("removeSubSelect");
+            tbody.innerHTML = "";
+            select.innerHTML = "";
+            
+            subjects.forEach(s => {
+                tbody.innerHTML += `<tr><td>${s.name}</td><td>${s.maximum}</td></tr>`;
+                select.innerHTML += `<option value="${s.name}">${s.name}</option>`;
+            });
+        }
+
+        function addSubject(e) {
+            e.preventDefault();
+            let name = document.getElementById("subName").value.trim();
+            let maximum = parseFloat(document.getElementById("subMax").value);
+            if (!name) return;
+
+            let subjects = getSubjects();
+            if (!subjects.some(s => s.name.toLowerCase() === name.toLowerCase())) {
+                subjects.push({name, maximum});
+                saveSubjectsList(subjects);
+            }
+            document.getElementById("subName").value = "";
+            renderSubjects();
+        }
+
+        function removeSubject(e) {
+            e.preventDefault();
+            let nameToRemove = document.getElementById("removeSubSelect").value;
+            let subjects = getSubjects();
+            if (subjects.length > 1) {
+                subjects = subjects.filter(s => s.name !== nameToRemove);
+                saveSubjectsList(subjects);
+                renderSubjects();
+            } else {
+                alert("At least one subject must remain.");
+            }
+        }
+
+        function renderMarksForm() {
+            let subjects = getSubjects();
+            let container = document.getElementById("dynamicMarksInputs");
+            container.innerHTML = "";
+            subjects.forEach(s => {
+                container.innerHTML += `
+                    <div class="form-group">
+                        <label>${s.name} (Max: ${s.maximum})</label>
+                        <input type="number" id="mark_${s.name}" min="0" max="${s.maximum}" step="1" value="0" required>
+                    </div>
+                `;
+            });
+        }
+
+        function saveMarks(e) {
+            e.preventDefault();
+            let name = document.getElementById("studentName").value.trim();
+            let roll = document.getElementById("rollNumber").value.trim();
+            let className = document.getElementById("className").value.trim();
+            let subjects = getSubjects();
+
+            let record = {
+                "Student Name": name,
+                "Roll Number": roll,
+                "Class": className
+            };
+
+            let totalObtained = 0;
+            let totalMaximum = 0;
+
+            subjects.forEach(s => {
+                let val = parseFloat(document.getElementById(`mark_${s.name}`).value) || 0;
+                let maxVal = s.maximum;
+                record[`${s.name} Obtained`] = val;
+                record[`${s.name} Maximum`] = maxVal;
+                record[`${s.name} Percentage`] = maxVal > 0 ? parseFloat(((val / maxVal) * 100).toFixed(2)) : 0;
+                totalObtained += val;
+                totalMaximum += maxVal;
+            });
+
+            record["Total Obtained"] = parseFloat(totalObtained.toFixed(2));
+            record["Total Maximum"] = parseFloat(totalMaximum.toFixed(2));
+            record["Overall Percentage"] = totalMaximum > 0 ? parseFloat(((totalObtained / totalMaximum) * 100).toFixed(2)) : 0;
+
+            let results = getResults();
+            results.push(record);
+            saveResultsList(results);
+
+            window.location.href = "/records";
+        }
+
+        function renderRecords() {
+            let results = getResults();
+            let container = document.getElementById("recordsContainer");
+            let btnContainer = document.getElementById("downloadButtons");
+
+            if (results.length === 0) {
+                container.innerHTML = "<p>No student results have been saved yet.</p>";
+                btnContainer.style.display = "none";
+                return;
+            }
+
+            let html = `<table><tr>`;
+            let keys = Object.keys(results[0]);
+            keys.forEach(k => html += `<th>${k}</th>`);
+            html += `</tr>`;
+
+            results.forEach(r => {
+                html += `<tr>`;
+                keys.forEach(k => html += `<td>${r[k]}</td>`);
+                html += `</tr>`;
+            });
+            html += `</table>`;
+
+            container.innerHTML = html;
+            btnContainer.style.display = "flex";
+        }
+
+        function downloadCSV() {
+            let results = getResults();
+            if (results.length === 0) return;
+            let keys = Object.keys(results[0]);
+            let csvContent = keys.join(",") + "\\n";
+            results.forEach(r => {
+                let row = keys.map(k => `"${r[k]}"`).join(",");
+                csvContent += row + "\\n";
+            });
+
+            let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            let url = URL.createObjectURL(blob);
+            let a = document.createElement('a');
+            a.href = url;
+            a.download = "student_results.csv";
+            a.click();
+        }
+
+        function downloadExcel() {
+            // Fallback CSV download formatted as .xls for simple client-side browser export
+            downloadCSV();
+        }
+    </script>
 </body>
 </html>
 """
 
 @app.route("/")
 def index():
-    subjects = load_subjects()
-    return render_template_string(HTML_TEMPLATE, active_tab="subjects", subjects=subjects)
+    return render_template_string(HTML_TEMPLATE, active_tab="subjects")
 
 @app.route("/marks")
 def marks_page():
-    subjects = load_subjects()
-    return render_template_string(HTML_TEMPLATE, active_tab="marks", subjects=subjects)
+    return render_template_string(HTML_TEMPLATE, active_tab="marks")
 
 @app.route("/records")
 def records_page():
-    saved = load_results()
-    saved_html = saved.to_html(classes="dataframe", index=False) if not saved.empty else None
-    return render_template_string(HTML_TEMPLATE, active_tab="records", saved_html=saved_html)
-
-@app.route("/add_subject", methods=["POST"])
-def add_subject():
-    name = request.form.get("name", "").strip()
-    try:
-        maximum = float(request.form.get("maximum", 100))
-        subjects = load_subjects()
-        if any(s["name"].casefold() == name.casefold() for s in subjects):
-            return redirect(url_for('index'))
-        subjects.append({"name": name, "maximum": maximum})
-        save_subjects(subjects)
-    except Exception:
-        pass
-    return redirect(url_for('index'))
-
-@app.route("/remove_subject", methods=["POST"])
-def remove_subject():
-    name_to_remove = request.form.get("subject_name", "").strip()
-    subjects = load_subjects()
-    if len(subjects) > 1:
-        updated = [s for s in subjects if s["name"] != name_to_remove]
-        try:
-            save_subjects(updated)
-        except Exception:
-            pass
-    return redirect(url_for('index'))
-
-@app.route("/save_marks", methods=["POST"])
-def save_marks():
-    name = request.form.get("student_name", "").strip()
-    roll = request.form.get("roll_number", "").strip()
-    class_value = request.form.get("class_name", "").strip()
-    
-    subjects = load_subjects()
-    total_obtained = 0
-    total_maximum = 0
-    
-    record = {
-        "Student Name": name,
-        "Roll Number": roll,
-        "Class": class_value,
-    }
-    
-    for s in subjects:
-        val = float(request.form.get(f"mark_{s['name']}", 0))
-        max_val = s["maximum"]
-        record[f"{s['name']} Obtained"] = val
-        record[f"{s['name']} Maximum"] = max_val
-        record[f"{s['name']} Percentage"] = round((val / max_val) * 100, 2) if max_val > 0 else 0
-        total_obtained += val
-        total_maximum += max_val
-
-    record["Total Obtained"] = round(total_obtained, 2)
-    record["Total Maximum"] = round(total_maximum, 2)
-    record["Overall Percentage"] = round((total_obtained / total_maximum) * 100, 2) if total_maximum > 0 else 0
-
-    save_result(record)
-    return redirect(url_for('records_page'))
-
-@app.route("/download/csv")
-def download_csv():
-    saved = load_results()
-    output = io.BytesIO()
-    output.write(saved.to_csv(index=False).encode("utf-8-sig"))
-    output.seek(0)
-    return send_file(output, mimetype="text/csv", as_attachment=True, download_name="student_results.csv")
-
-@app.route("/download/excel")
-def download_excel():
-    saved = load_results()
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        saved.to_excel(writer, index=False, sheet_name="Student Results")
-    output.seek(0)
-    return send_file(output, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", as_attachment=True, download_name="student_results.xlsx")
+    return render_template_string(HTML_TEMPLATE, active_tab="records")
