@@ -7,7 +7,7 @@ from flask import Flask, render_template_string, request, redirect, url_for, sen
 
 app = Flask(__name__)
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path("/tmp")
 SUBJECT_FILE = BASE_DIR / "subjects.json"
 RESULT_FILE = BASE_DIR / "student_results.csv"
 
