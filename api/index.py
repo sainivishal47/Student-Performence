@@ -108,12 +108,16 @@ HTML_TEMPLATE = """
         th { background: #0c2450; color: #ffffff; }
         
         /* Professional Clean A4 Marksheet Styling */
+        .marksheet-wrapper {
+            margin-bottom: 30px;
+            position: relative;
+        }
         .marksheet-card {
             background: #ffffff;
             color: #000000;
             width: 210mm;
             min-height: 297mm;
-            margin: 20px auto;
+            margin: 0 auto;
             padding: 20mm;
             box-sizing: border-box;
             border-radius: 4px;
@@ -162,52 +166,6 @@ HTML_TEMPLATE = """
             font-weight: 800;
             border-bottom: 2px solid #000000;
         }
-        
-        /* Stunning Visualization Cards */
-        .viz-card {
-            background: #ffffff;
-            color: #000000;
-            border: 2px solid #000000;
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 25px;
-            box-shadow: 0 6px 18px rgba(0,0,0,0.3);
-        }
-        .viz-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 2px solid #e2e8f0;
-            padding-bottom: 12px;
-            margin-bottom: 18px;
-        }
-        .viz-title { font-size: 20px; font-weight: 800; color: #000000; margin: 0; }
-        .viz-badge { background: #2563eb; color: #ffffff; padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 14px; }
-        
-        .chart-bar-wrap {
-            margin-bottom: 15px;
-        }
-        .chart-label {
-            display: flex;
-            justify-content: space-between;
-            font-size: 14px;
-            font-weight: 700;
-            color: #1e293b;
-            margin-bottom: 5px;
-        }
-        .chart-bar-bg {
-            background: #f1f5f9;
-            border-radius: 6px;
-            height: 16px;
-            width: 100%;
-            overflow: hidden;
-            border: 1px solid #cbd5e1;
-        }
-        .chart-bar-fill {
-            background: linear-gradient(90deg, #2563eb, #3b82f6);
-            height: 100%;
-            border-radius: 5px;
-        }
 
         .marksheet-footer {
             margin-top: 40px;
@@ -216,12 +174,20 @@ HTML_TEMPLATE = """
             align-items: center;
         }
 
+        .actions-bar {
+            width: 210mm;
+            margin: 0 auto 10px auto;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
         @media print {
             body { background: none; padding: 0; color: #000; }
             .container > *:not(#recordsContainer) { display: none; }
             .container { background: none; border: none; box-shadow: none; padding: 0; max-width: 100%; }
             .marksheet-card { box-shadow: none; margin: 0; width: 100%; border: 1px solid #000; page-break-after: always; }
-            .no-print { display: none !important; }
+            .no-print, .actions-bar { display: none !important; }
         }
 
         .footer {
@@ -246,7 +212,6 @@ HTML_TEMPLATE = """
             <a href="/" class="{{ 'active' if active_tab == 'subjects' else '' }}">Manage Subjects</a>
             <a href="/marks" class="{{ 'active' if active_tab == 'marks' else '' }}">Enter Marks</a>
             <a href="/records" class="{{ 'active' if active_tab == 'records' else '' }}">Saved Marksheets</a>
-            <a href="/visualization" class="{{ 'active' if active_tab == 'visualization' else '' }}">Visualization</a>
         </div>
 
         {% if active_tab == 'subjects' %}
@@ -310,15 +275,12 @@ HTML_TEMPLATE = """
             <div style="display: flex; justify-content: space-between; align-items: center;" class="no-print">
                 <h2>Generated Student Marksheets (A4 Format)</h2>
                 <div>
-                    <button onclick="window.print()" class="btn">🖨️ Print / Save as PDF</button>
+                    <button onclick="printMergedPDF()" class="btn">🖨️ Print Merged PDF (All Students)</button>
+                    <button onclick="clearAllRecords()" class="btn btn-danger">🗑️ Delete All Records</button>
                     <button onclick="downloadCSV()" class="btn" style="background: #059669;">📥 Download CSV</button>
                 </div>
             </div>
             <div id="recordsContainer"></div>
-
-        {% elif active_tab == 'visualization' %}
-            <h2>Student Performance Visualization</h2>
-            <div id="visualizationContainer"></div>
         {% endif %}
 
         <div class="footer no-print">
@@ -365,8 +327,6 @@ HTML_TEMPLATE = """
             renderMarksForm();
         } else if (tab === "records") {
             renderRecords();
-        } else if (tab === "visualization") {
-            renderVisualization();
         }
 
         function renderSubjects() {
@@ -488,26 +448,31 @@ HTML_TEMPLATE = """
                 let school = r["School Name"] || "OFFICIAL INSTITUTION";
                 let controller = r["Controller Name"] || "Controller of Examination";
                 html += `
-                    <div class="marksheet-card">
-                        <div class="marksheet-header">
-                            <h2>${school.toUpperCase()}</h2>
-                            <p>Official Academic Performance Marksheet</p>
+                    <div class="marksheet-wrapper" id="marksheet_${idx}">
+                        <div class="actions-bar no-print">
+                            <button onclick="printSinglePDF(${idx})" class="btn" style="background:#2563eb; padding:6px 14px; font-size:13px;">🖨️ Print Single PDF</button>
+                            <button onclick="deleteSingleRecord(${idx})" class="btn btn-danger" style="padding:6px 14px; font-size:13px;">🗑️ Delete Marksheet</button>
                         </div>
-                        
-                        <div class="student-info-grid">
-                            <div><strong>Student Name:</strong> ${r["Student Name"]}</div>
-                            <div><strong>Roll Number:</strong> ${r["Roll Number"]}</div>
-                            <div><strong>Class / Semester:</strong> ${r["Class"]}</div>
-                            <div><strong>Status:</strong> <span style="color: #16a34a; font-weight: bold;">PASSED</span></div>
-                        </div>
+                        <div class="marksheet-card">
+                            <div class="marksheet-header">
+                                <h2>${school.toUpperCase()}</h2>
+                                <p>Official Academic Performance Marksheet</p>
+                            </div>
+                            
+                            <div class="student-info-grid">
+                                <div><strong>Student Name:</strong> ${r["Student Name"]}</div>
+                                <div><strong>Roll Number:</strong> ${r["Roll Number"]}</div>
+                                <div><strong>Class / Semester:</strong> ${r["Class"]}</div>
+                                <div><strong>Status:</strong> <span style="color: #16a34a; font-weight: bold;">PASSED</span></div>
+                            </div>
 
-                        <table class="marksheet-table">
-                            <tr>
-                                <th>Subject Name</th>
-                                <th>Maximum Marks</th>
-                                <th>Marks Obtained</th>
-                                <th>Percentage</th>
-                            </tr>
+                            <table class="marksheet-table">
+                                <tr>
+                                    <th>Subject Name</th>
+                                    <th>Maximum Marks</th>
+                                    <th>Marks Obtained</th>
+                                    <th>Percentage</th>
+                                </tr>
                 `;
 
                 r["Subjects"].forEach(sub => {
@@ -522,21 +487,22 @@ HTML_TEMPLATE = """
                 });
 
                 html += `
-                            <tr style="font-weight:bold;">
-                                <td style="text-align:left; background:#ffffff;">TOTAL / OVERALL</td>
-                                <td style="background:#ffffff;">${r["Total Maximum"]}</td>
-                                <td style="background:#ffffff;">${r["Total Obtained"]}</td>
-                                <td style="background:#ffffff; color:#000000;">${r["Overall Percentage"]}%</td>
-                            </tr>
-                        </table>
+                                <tr style="font-weight:bold;">
+                                    <td style="text-align:left; background:#ffffff;">TOTAL / OVERALL</td>
+                                    <td style="background:#ffffff;">${r["Total Maximum"]}</td>
+                                    <td style="background:#ffffff;">${r["Total Obtained"]}</td>
+                                    <td style="background:#ffffff; color:#000000;">${r["Overall Percentage"]}%</td>
+                                </tr>
+                            </table>
 
-                        <div class="marksheet-footer">
-                            <div>
-                                <p style="margin:0; font-size:13px; color:#000000;">Date: ${new Date().toLocaleDateString()}</p>
-                            </div>
-                            <div style="text-align:center;">
-                                <div style="font-family: monospace; font-weight:bold; color:#000000; font-size:16px; border-bottom: 2px solid #000000; padding-bottom:5px; width:180px;">${controller}</div>
-                                <p style="margin:5px 0 0 0; font-size:12px; color:#000000; font-weight:600;">Controller of Examination</p>
+                            <div class="marksheet-footer">
+                                <div>
+                                    <p style="margin:0; font-size:13px; color:#000000;">Date: ${new Date().toLocaleDateString()}</p>
+                                </div>
+                                <div style="text-align:center;">
+                                    <div style="font-family: monospace; font-weight:bold; color:#000000; font-size:16px; border-bottom: 2px solid #000000; padding-bottom:5px; width:180px;">${controller}</div>
+                                    <p style="margin:5px 0 0 0; font-size:12px; color:#000000; font-weight:600;">Controller of Examination</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -546,47 +512,33 @@ HTML_TEMPLATE = """
             container.innerHTML = html;
         }
 
-        function renderVisualization() {
-            let results = getResults();
-            let container = document.getElementById("visualizationContainer");
-
-            if (results.length === 0) {
-                container.innerHTML = "<p style='margin-top:20px;'>No student data available for visualization yet.</p>";
-                return;
-            }
-
-            let html = "";
-            results.forEach((r, idx) => {
-                let school = r["School Name"] || "Institution";
-                html += `
-                    <div class="viz-card">
-                        <div class="viz-header">
-                            <div>
-                                <h3 class="viz-title">${r["Student Name"]}</h3>
-                                <p style="margin:4px 0 0 0; font-size:14px; color:#475569; font-weight:600;">Roll: ${r["Roll Number"]} | Class: ${r["Class"]} | ${school}</p>
-                            </div>
-                            <div class="viz-badge">${r["Overall Percentage"]}% Overall</div>
-                        </div>
-                `;
-
-                r["Subjects"].forEach(sub => {
-                    html += `
-                        <div class="chart-bar-wrap">
-                            <div class="chart-label">
-                                <span>${sub.name}</span>
-                                <span>${sub.obtained} / ${sub.maximum} (${sub.percentage}%)</span>
-                            </div>
-                            <div class="chart-bar-bg">
-                                <div class="chart-bar-fill" style="width: ${sub.percentage}%;"></div>
-                            </div>
-                        </div>
-                    `;
-                });
-
-                html += `</div>`;
+        function printSinglePDF(idx) {
+            let allWrappers = document.querySelectorAll('.marksheet-wrapper');
+            allWrappers.forEach((w, i) => {
+                if (i !== idx) w.style.display = 'none';
             });
+            window.print();
+            allWrappers.forEach(w => w.style.display = 'block');
+        }
 
-            container.innerHTML = html;
+        function printMergedPDF() {
+            window.print();
+        }
+
+        function deleteSingleRecord(idx) {
+            if (confirm("Are you sure you want to delete this marksheet?")) {
+                let results = getResults();
+                results.splice(idx, 1);
+                saveResultsList(results);
+                renderRecords();
+            }
+        }
+
+        function clearAllRecords() {
+            if (confirm("Are you sure you want to delete all saved marksheets?")) {
+                localStorage.removeItem("edutrack_results");
+                renderRecords();
+            }
         }
 
         function downloadCSV() {
@@ -621,7 +573,3 @@ def marks_page():
 @app.route("/records")
 def records_page():
     return render_template_string(HTML_TEMPLATE, active_tab="records")
-
-@app.route("/visualization")
-def visualization_page():
-    return render_template_string(HTML_TEMPLATE, active_tab="visualization")
