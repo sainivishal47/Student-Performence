@@ -163,37 +163,50 @@ HTML_TEMPLATE = """
             border-bottom: 2px solid #000000;
         }
         
-        /* Visualization Progress bars */
-        .chart-container {
-            margin-top: 20px;
+        /* Stunning Visualization Cards */
+        .viz-card {
             background: #ffffff;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #294773;
             color: #000000;
+            border: 2px solid #000000;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.3);
         }
+        .viz-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 12px;
+            margin-bottom: 18px;
+        }
+        .viz-title { font-size: 20px; font-weight: 800; color: #000000; margin: 0; }
+        .viz-badge { background: #2563eb; color: #ffffff; padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 14px; }
+        
         .chart-bar-wrap {
-            margin-bottom: 12px;
+            margin-bottom: 15px;
         }
         .chart-label {
             display: flex;
             justify-content: space-between;
             font-size: 14px;
             font-weight: 700;
-            color: #eaf2ff;
-            margin-bottom: 4px;
+            color: #1e293b;
+            margin-bottom: 5px;
         }
         .chart-bar-bg {
-            background: #112c56;
-            border-radius: 4px;
-            height: 14px;
+            background: #f1f5f9;
+            border-radius: 6px;
+            height: 16px;
             width: 100%;
             overflow: hidden;
-            border: 1px solid #40689e;
+            border: 1px solid #cbd5e1;
         }
         .chart-bar-fill {
-            background: linear-gradient(90deg, #3b82f6, #2563eb);
+            background: linear-gradient(90deg, #2563eb, #3b82f6);
             height: 100%;
+            border-radius: 5px;
         }
 
         .marksheet-footer {
@@ -266,8 +279,12 @@ HTML_TEMPLATE = """
             </form>
 
         {% elif active_tab == 'marks' %}
-            <h2>Enter Student Marks</h2>
+            <h2>Enter Student Marks & Details</h2>
             <form id="saveMarksForm" onsubmit="saveMarks(event)">
+                <div class="form-group">
+                    <label>School / College / Institution Name</label>
+                    <input type="text" id="schoolName" placeholder="e.g. SGI, Bikaner Technical University" required>
+                </div>
                 <div class="form-group">
                     <label>Student Full Name</label>
                     <input type="text" id="studentName" required>
@@ -279,6 +296,10 @@ HTML_TEMPLATE = """
                 <div class="form-group">
                     <label>Class / Semester</label>
                     <input type="text" id="className" required>
+                </div>
+                <div class="form-group">
+                    <label>Controller of Examination Name</label>
+                    <input type="text" id="controllerName" placeholder="e.g. Vishal Saini" required>
                 </div>
                 <h3>Subject-wise Marks</h3>
                 <div id="dynamicMarksInputs"></div>
@@ -405,9 +426,11 @@ HTML_TEMPLATE = """
 
         function saveMarks(e) {
             e.preventDefault();
+            let schoolName = document.getElementById("schoolName").value.trim();
             let name = document.getElementById("studentName").value.trim();
             let roll = document.getElementById("rollNumber").value.trim();
             let className = document.getElementById("className").value.trim();
+            let controllerName = document.getElementById("controllerName").value.trim();
             let subjects = getSubjects();
 
             let subjectDetails = [];
@@ -433,9 +456,11 @@ HTML_TEMPLATE = """
             let overallPercentage = totalMaximum > 0 ? parseFloat(((totalObtained / totalMaximum) * 100).toFixed(2)) : 0;
 
             let record = {
+                "School Name": schoolName,
                 "Student Name": name,
                 "Roll Number": roll,
                 "Class": className,
+                "Controller Name": controllerName,
                 "Subjects": subjectDetails,
                 "Total Obtained": parseFloat(totalObtained.toFixed(2)),
                 "Total Maximum": parseFloat(totalMaximum.toFixed(2)),
@@ -460,11 +485,13 @@ HTML_TEMPLATE = """
 
             let html = "";
             results.forEach((r, idx) => {
+                let school = r["School Name"] || "OFFICIAL INSTITUTION";
+                let controller = r["Controller Name"] || "Controller of Examination";
                 html += `
                     <div class="marksheet-card">
                         <div class="marksheet-header">
-                            <h2>OFFICIAL ACADEMIC PERFORMANCE MARKSHEET</h2>
-                            <p>Statement of Marks & Evaluation</p>
+                            <h2>${school.toUpperCase()}</h2>
+                            <p>Official Academic Performance Marksheet</p>
                         </div>
                         
                         <div class="student-info-grid">
@@ -505,11 +532,11 @@ HTML_TEMPLATE = """
 
                         <div class="marksheet-footer">
                             <div>
-                                <p style="margin:0; font-size:13px; color:#333;">Date: ${new Date().toLocaleDateString()}</p>
+                                <p style="margin:0; font-size:13px; color:#000000;">Date: ${new Date().toLocaleDateString()}</p>
                             </div>
                             <div style="text-align:center;">
-                                <div style="font-family: monospace; font-weight:bold; color:#000000; font-size:16px; border-bottom: 2px solid #000000; padding-bottom:5px; width:150px;">Vishal Saini</div>
-                                <p style="margin:5px 0 0 0; font-size:12px; color:#333;">Controller of Examination</p>
+                                <div style="font-family: monospace; font-weight:bold; color:#000000; font-size:16px; border-bottom: 2px solid #000000; padding-bottom:5px; width:180px;">${controller}</div>
+                                <p style="margin:5px 0 0 0; font-size:12px; color:#000000; font-weight:600;">Controller of Examination</p>
                             </div>
                         </div>
                     </div>
@@ -530,10 +557,16 @@ HTML_TEMPLATE = """
 
             let html = "";
             results.forEach((r, idx) => {
+                let school = r["School Name"] || "Institution";
                 html += `
-                    <div class="chart-container">
-                        <h3 style="margin:0 0 5px 0; color:#ffffff;">${r["Student Name"]} (Roll: ${r["Roll Number"]} | Class: ${r["Class"]})</h3>
-                        <p style="margin:0 0 15px 0; color:#93c5fd; font-size:14px;">Overall Percentage: <strong>${r["Overall Percentage"]}%</strong></p>
+                    <div class="viz-card">
+                        <div class="viz-header">
+                            <div>
+                                <h3 class="viz-title">${r["Student Name"]}</h3>
+                                <p style="margin:4px 0 0 0; font-size:14px; color:#475569; font-weight:600;">Roll: ${r["Roll Number"]} | Class: ${r["Class"]} | ${school}</p>
+                            </div>
+                            <div class="viz-badge">${r["Overall Percentage"]}% Overall</div>
+                        </div>
                 `;
 
                 r["Subjects"].forEach(sub => {
@@ -550,7 +583,7 @@ HTML_TEMPLATE = """
                     `;
                 });
 
-                html += `</div><br>`;
+                html += `</div>`;
             });
 
             container.innerHTML = html;
@@ -560,9 +593,9 @@ HTML_TEMPLATE = """
             let results = getResults();
             if (results.length === 0) return;
             
-            let csvContent = "Student Name,Roll Number,Class,Total Obtained,Total Maximum,Overall Percentage\\n";
+            let csvContent = "School Name,Student Name,Roll Number,Class,Controller Name,Total Obtained,Total Maximum,Overall Percentage\\n";
             results.forEach(r => {
-                csvContent += `\\"${r["Student Name"]}\\",\\"${r["Roll Number"]}\\",\\"${r["Class"]}\\",${r["Total Obtained"]},${r["Total Maximum"]},${r["Overall Percentage"]}\\n`;
+                csvContent += `\\"${r["School Name"]}\\",\\"${r["Student Name"]}\\",\\"${r["Roll Number"]}\\",\\"${r["Class"]}\\",\\"${r["Controller Name"]}\\",${r["Total Obtained"]},${r["Total Maximum"]},${r["Overall Percentage"]}\\n`;
             });
 
             let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
