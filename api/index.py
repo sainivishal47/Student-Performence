@@ -23,7 +23,6 @@ HTML_TEMPLATE = """
             --navy: #07152f;
             --navy2: #0c2450;
             --blue: #2563eb;
-            --blue2: #3b82f6;
             --text: #eaf2ff;
         }
         body {
@@ -108,39 +107,41 @@ HTML_TEMPLATE = """
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #294773; }
         th { background: #0c2450; color: #ffffff; }
         
-        /* A4 Marksheet Styling */
+        /* Professional Clean A4 Marksheet Styling */
         .marksheet-card {
             background: #ffffff;
-            color: #111111;
+            color: #000000;
             width: 210mm;
             min-height: 297mm;
             margin: 20px auto;
             padding: 20mm;
             box-sizing: border-box;
-            border-radius: 8px;
+            border-radius: 4px;
+            border: 2px solid #000000;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             position: relative;
         }
         .marksheet-header {
             text-align: center;
-            border-bottom: 3px double #0c2450;
+            border-bottom: 3px double #000000;
             padding-bottom: 15px;
             margin-bottom: 20px;
         }
-        .marksheet-header h2 { margin: 0; color: #0c2450; font-size: 26px; }
-        .marksheet-header p { margin: 5px 0 0 0; color: #555555; font-size: 14px; }
+        .marksheet-header h2 { margin: 0; color: #000000; font-size: 26px; font-weight: 800; letter-spacing: 1px; }
+        .marksheet-header p { margin: 5px 0 0 0; color: #333333; font-size: 14px; font-weight: 600; }
         
         .student-info-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            background: #f8fafc;
+            gap: 12px;
+            background: #ffffff;
             padding: 15px;
-            border-radius: 6px;
-            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            border: 1px solid #000000;
             margin-bottom: 20px;
             font-size: 15px;
-            color: #1e293b;
+            color: #000000;
+            font-weight: 600;
         }
         
         .marksheet-table {
@@ -149,23 +150,25 @@ HTML_TEMPLATE = """
             margin-bottom: 20px;
         }
         .marksheet-table th, .marksheet-table td {
-            border: 1px solid #cbd5e1;
+            border: 1px solid #000000;
             padding: 10px;
             text-align: center;
-            color: #1e293b;
+            color: #000000;
         }
         .marksheet-table th {
-            background: #0c2450;
-            color: #ffffff;
+            background: #f1f5f9;
+            color: #000000;
+            font-weight: 800;
+            border-bottom: 2px solid #000000;
         }
         
         /* Visualization Progress bars */
         .chart-container {
             margin-top: 20px;
-            background: #f8fafc;
+            background: #ffffff;
             padding: 15px;
-            border-radius: 6px;
-            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            border: 1px solid #000000;
         }
         .chart-bar-wrap {
             margin-bottom: 10px;
@@ -174,21 +177,21 @@ HTML_TEMPLATE = """
             display: flex;
             justify-content: space-between;
             font-size: 13px;
-            font-weight: 600;
-            color: #334155;
+            font-weight: 700;
+            color: #000000;
             margin-bottom: 4px;
         }
         .chart-bar-bg {
             background: #e2e8f0;
-            border-radius: 4px;
+            border-radius: 3px;
             height: 12px;
             width: 100%;
             overflow: hidden;
+            border: 1px solid #000000;
         }
         .chart-bar-fill {
-            background: linear-gradient(90deg, #2563eb, #3b82f6);
+            background: #000000;
             height: 100%;
-            border-radius: 4px;
         }
 
         .marksheet-footer {
@@ -202,7 +205,7 @@ HTML_TEMPLATE = """
             body { background: none; padding: 0; color: #000; }
             .container > *:not(#recordsContainer) { display: none; }
             .container { background: none; border: none; box-shadow: none; padding: 0; max-width: 100%; }
-            .marksheet-card { box-shadow: none; margin: 0; width: 100%; page-break-after: always; }
+            .marksheet-card { box-shadow: none; margin: 0; width: 100%; border: 1px solid #000; page-break-after: always; }
             .no-print { display: none !important; }
         }
 
@@ -451,7 +454,7 @@ HTML_TEMPLATE = """
                 html += `
                     <div class="marksheet-card">
                         <div class="marksheet-header">
-                            <h2>🎓 BIKANER TECHNICAL UNIVERSITY / SGI</h2>
+                            <h2>BIKANER TECHNICAL UNIVERSITY / SGI</h2>
                             <p>Official Academic Performance Marksheet</p>
                         </div>
                         
@@ -483,16 +486,16 @@ HTML_TEMPLATE = """
                 });
 
                 html += `
-                            <tr style="background:#f1f5f9; font-weight:bold;">
+                            <tr style="background:#f8fafc; font-weight:bold;">
                                 <td style="text-align:left;">TOTAL / OVERALL</td>
                                 <td>${r["Total Maximum"]}</td>
                                 <td>${r["Total Obtained"]}</td>
-                                <td style="color:#2563eb;">${r["Overall Percentage"]}%</td>
+                                <td style="color:#000000;">${r["Overall Percentage"]}%</td>
                             </tr>
                         </table>
 
                         <div class="chart-container">
-                            <h4 style="margin:0 0 10px 0; color:#0c2450;">Performance Visualization Chart</h4>
+                            <h4 style="margin:0 0 10px 0; color:#000000;">Performance Visualization Chart</h4>
                 `;
 
                 r["Subjects"].forEach(sub => {
@@ -514,11 +517,11 @@ HTML_TEMPLATE = """
 
                         <div class="marksheet-footer">
                             <div>
-                                <p style="margin:0; font-size:13px; color:#555;">Date: ${new Date().toLocaleDateString()}</p>
+                                <p style="margin:0; font-size:13px; color:#333;">Date: ${new Date().toLocaleDateString()}</p>
                             </div>
                             <div style="text-align:center;">
-                                <div style="font-family: monospace; font-weight:bold; color:#0c2450; font-size:16px; border-bottom: 2px solid #0c2450; padding-bottom:5px; width:150px;">Vishal Saini</div>
-                                <p style="margin:5px 0 0 0; font-size:12px; color:#666;">Controller of Examination</p>
+                                <div style="font-family: monospace; font-weight:bold; color:#000000; font-size:16px; border-bottom: 2px solid #000000; padding-bottom:5px; width:150px;">Vishal Saini</div>
+                                <p style="margin:5px 0 0 0; font-size:12px; color:#333;">Controller of Examination</p>
                             </div>
                         </div>
                     </div>
@@ -534,7 +537,7 @@ HTML_TEMPLATE = """
             
             let csvContent = "Student Name,Roll Number,Class,Total Obtained,Total Maximum,Overall Percentage\\n";
             results.forEach(r => {
-                csvContent += `"${r["Student Name"]}","${r["Roll Number"]}","${r["Class"]}",${r["Total Obtained"]},${r["Total Maximum"]},${r["Overall Percentage"]}\\n`;
+                csvContent += `\\"${r["Student Name"]}\\",\\"${r["Roll Number"]}\\",\\"${r["Class"]}\\",${r["Total Obtained"]},${r["Total Maximum"]},${r["Overall Percentage"]}\\n`;
             });
 
             let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
