@@ -127,7 +127,7 @@ HTML_TEMPLATE = """
             padding-bottom: 15px;
             margin-bottom: 20px;
         }
-        .marksheet-header h2 { margin: 0; color: #000000; font-size: 26px; font-weight: 800; letter-spacing: 1px; }
+        .marksheet-header h2 { margin: 0; color: #000000; font-size: 24px; font-weight: 800; letter-spacing: 1px; }
         .marksheet-header p { margin: 5px 0 0 0; color: #333333; font-size: 14px; font-weight: 600; }
         
         .student-info-grid {
@@ -154,9 +154,10 @@ HTML_TEMPLATE = """
             padding: 10px;
             text-align: center;
             color: #000000;
+            background: #ffffff !important;
         }
         .marksheet-table th {
-            background: #f1f5f9;
+            background: #f1f5f9 !important;
             color: #000000;
             font-weight: 800;
             border-bottom: 2px solid #000000;
@@ -166,31 +167,32 @@ HTML_TEMPLATE = """
         .chart-container {
             margin-top: 20px;
             background: #ffffff;
-            padding: 15px;
-            border-radius: 4px;
-            border: 1px solid #000000;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #294773;
+            color: #000000;
         }
         .chart-bar-wrap {
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
         .chart-label {
             display: flex;
             justify-content: space-between;
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 700;
-            color: #000000;
+            color: #eaf2ff;
             margin-bottom: 4px;
         }
         .chart-bar-bg {
-            background: #e2e8f0;
-            border-radius: 3px;
-            height: 12px;
+            background: #112c56;
+            border-radius: 4px;
+            height: 14px;
             width: 100%;
             overflow: hidden;
-            border: 1px solid #000000;
+            border: 1px solid #40689e;
         }
         .chart-bar-fill {
-            background: #000000;
+            background: linear-gradient(90deg, #3b82f6, #2563eb);
             height: 100%;
         }
 
@@ -231,6 +233,7 @@ HTML_TEMPLATE = """
             <a href="/" class="{{ 'active' if active_tab == 'subjects' else '' }}">Manage Subjects</a>
             <a href="/marks" class="{{ 'active' if active_tab == 'marks' else '' }}">Enter Marks</a>
             <a href="/records" class="{{ 'active' if active_tab == 'records' else '' }}">Saved Marksheets</a>
+            <a href="/visualization" class="{{ 'active' if active_tab == 'visualization' else '' }}">Visualization</a>
         </div>
 
         {% if active_tab == 'subjects' %}
@@ -291,6 +294,10 @@ HTML_TEMPLATE = """
                 </div>
             </div>
             <div id="recordsContainer"></div>
+
+        {% elif active_tab == 'visualization' %}
+            <h2>Student Performance Visualization</h2>
+            <div id="visualizationContainer"></div>
         {% endif %}
 
         <div class="footer no-print">
@@ -337,6 +344,8 @@ HTML_TEMPLATE = """
             renderMarksForm();
         } else if (tab === "records") {
             renderRecords();
+        } else if (tab === "visualization") {
+            renderVisualization();
         }
 
         function renderSubjects() {
@@ -454,8 +463,8 @@ HTML_TEMPLATE = """
                 html += `
                     <div class="marksheet-card">
                         <div class="marksheet-header">
-                            <h2>BIKANER TECHNICAL UNIVERSITY / SGI</h2>
-                            <p>Official Academic Performance Marksheet</p>
+                            <h2>OFFICIAL ACADEMIC PERFORMANCE MARKSHEET</h2>
+                            <p>Statement of Marks & Evaluation</p>
                         </div>
                         
                         <div class="student-info-grid">
@@ -477,25 +486,54 @@ HTML_TEMPLATE = """
                 r["Subjects"].forEach(sub => {
                     html += `
                         <tr>
-                            <td style="text-align:left; font-weight:600;">${sub.name}</td>
-                            <td>${sub.maximum}</td>
-                            <td>${sub.obtained}</td>
-                            <td>${sub.percentage}%</td>
+                            <td style="text-align:left; font-weight:600; background:#ffffff;">${sub.name}</td>
+                            <td style="background:#ffffff;">${sub.maximum}</td>
+                            <td style="background:#ffffff;">${sub.obtained}</td>
+                            <td style="background:#ffffff;">${sub.percentage}%</td>
                         </tr>
                     `;
                 });
 
                 html += `
-                            <tr style="background:#f8fafc; font-weight:bold;">
-                                <td style="text-align:left;">TOTAL / OVERALL</td>
-                                <td>${r["Total Maximum"]}</td>
-                                <td>${r["Total Obtained"]}</td>
-                                <td style="color:#000000;">${r["Overall Percentage"]}%</td>
+                            <tr style="font-weight:bold;">
+                                <td style="text-align:left; background:#ffffff;">TOTAL / OVERALL</td>
+                                <td style="background:#ffffff;">${r["Total Maximum"]}</td>
+                                <td style="background:#ffffff;">${r["Total Obtained"]}</td>
+                                <td style="background:#ffffff; color:#000000;">${r["Overall Percentage"]}%</td>
                             </tr>
                         </table>
 
-                        <div class="chart-container">
-                            <h4 style="margin:0 0 10px 0; color:#000000;">Performance Visualization Chart</h4>
+                        <div class="marksheet-footer">
+                            <div>
+                                <p style="margin:0; font-size:13px; color:#333;">Date: ${new Date().toLocaleDateString()}</p>
+                            </div>
+                            <div style="text-align:center;">
+                                <div style="font-family: monospace; font-weight:bold; color:#000000; font-size:16px; border-bottom: 2px solid #000000; padding-bottom:5px; width:150px;">Vishal Saini</div>
+                                <p style="margin:5px 0 0 0; font-size:12px; color:#333;">Controller of Examination</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function renderVisualization() {
+            let results = getResults();
+            let container = document.getElementById("visualizationContainer");
+
+            if (results.length === 0) {
+                container.innerHTML = "<p style='margin-top:20px;'>No student data available for visualization yet.</p>";
+                return;
+            }
+
+            let html = "";
+            results.forEach((r, idx) => {
+                html += `
+                    <div class="chart-container">
+                        <h3 style="margin:0 0 5px 0; color:#ffffff;">${r["Student Name"]} (Roll: ${r["Roll Number"]} | Class: ${r["Class"]})</h3>
+                        <p style="margin:0 0 15px 0; color:#93c5fd; font-size:14px;">Overall Percentage: <strong>${r["Overall Percentage"]}%</strong></p>
                 `;
 
                 r["Subjects"].forEach(sub => {
@@ -512,20 +550,7 @@ HTML_TEMPLATE = """
                     `;
                 });
 
-                html += `
-                        </div>
-
-                        <div class="marksheet-footer">
-                            <div>
-                                <p style="margin:0; font-size:13px; color:#333;">Date: ${new Date().toLocaleDateString()}</p>
-                            </div>
-                            <div style="text-align:center;">
-                                <div style="font-family: monospace; font-weight:bold; color:#000000; font-size:16px; border-bottom: 2px solid #000000; padding-bottom:5px; width:150px;">Vishal Saini</div>
-                                <p style="margin:5px 0 0 0; font-size:12px; color:#333;">Controller of Examination</p>
-                            </div>
-                        </div>
-                    </div>
-                `;
+                html += `</div><br>`;
             });
 
             container.innerHTML = html;
@@ -563,3 +588,7 @@ def marks_page():
 @app.route("/records")
 def records_page():
     return render_template_string(HTML_TEMPLATE, active_tab="records")
+
+@app.route("/visualization")
+def visualization_page():
+    return render_template_string(HTML_TEMPLATE, active_tab="visualization")
